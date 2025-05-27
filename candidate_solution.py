@@ -131,22 +131,28 @@ def create_fastapi_app() -> FastAPI:
         
         try:
             #Check if ability is available
-            cursor.execute("SELECT id FROM abilities WHERE LOWER(name) = LOWER(?)", (ability_name.lower()))
+            cursor.execute(
+                "SELECT id FROM abilities WHERE LOWER(name) = LOWER(?)",
+                (ability_name.strip().lower(),)
+            )
             ability = cursor.fetchone()
-            
+
             if not ability:
-                raise HTTPException(status_code=404, detail="Ability not found")
-            
-            query = """SELECT DISTINCT p.name FROM pokemon p
-            JOIN trainer_pokemon_abilities tpa ON p.id = tpa.pokemon_id
-            JOIN abilities a ON tpa.ability_id = a.id
-            WHERE LOWER(a.name) = LOWER(?) ORDER BY p.name"""
-            cursor.execute(query, (ability_name,))
-            pokemon_list = [row['name'] for row in cursor.fetchall()]
-            
-            if not pokemon_list:
-                raise HTTPException(status_code=404, detail="No Pokemon found with this ability")
-            return pokemon_list
+                raise HTTPException(status_code=404, detail=f"Ability '{ability_name}' not found.")
+
+            # Retrieve Pokémon names with this ability
+            query = """
+                SELECT DISTINCT p.name 
+                FROM pokemon p
+                JOIN trainer_pokemon_abilities tpa ON p.id = tpa.pokemon_id
+                JOIN abilities a ON tpa.ability_id = a.id
+                WHERE LOWER(a.name) = LOWER(?)
+                ORDER BY p.name
+            """
+            cursor.execute(query, (ability_name.strip().lower(),))
+            results = cursor.fetchall()
+
+            return [row["name"] for row in results] if results else HTTPException(status_code=404, detail="No Pokemon found with this ability")
         
         except sqlite3.Error as e:
             raise HTTPException(status_code=500, detail=f"Database error: {e}")
