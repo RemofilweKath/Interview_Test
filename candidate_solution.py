@@ -137,12 +137,13 @@ def create_fastapi_app() -> FastAPI:
             if not ability:
                 raise HTTPException(status_code=404, detail="Ability not found")
             
-            # Get a pokemon with the ability
-            cursor.execute("""SELECT pokemon.name FROM pokemon JOIN trainer_pokemon_abilities ON pokemon.id = trainer_pokemon_abilities.pokemon_id
-                           JOIN abilities ON trainer_pokemon_abilities.ability_id = abilities.id 
-                           WHERE LOWER(abilities.name) = LOWER(?)""", (ability_name.lower(),))
-            
+            query = """SELECT DISTINCT p.name FROM pokemon p
+            JOIN trainer_pokemon_abilities tpa ON p.id = tpa.pokemon_id
+            JOIN abilities a ON tpa.ability_id = a.id
+            WHERE LOWER(a.name) = LOWER(?) ORDER BY p.name"""
+            cursor.execute(query, (ability_name,))
             pokemon_list = [row['name'] for row in cursor.fetchall()]
+            
             if not pokemon_list:
                 raise HTTPException(status_code=404, detail="No Pokemon found with this ability")
             return pokemon_list
